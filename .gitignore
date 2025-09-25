@@ -28,7 +28,6 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.pkl
 *.joblib
 *.log
 *.sqlite3
@@ -41,17 +40,17 @@ venv/
 
 # ─────────────── Model Artifacts ───────────────
 # Model checkpoints and trained models
-*.pth
+
 *.pt
 *.h5
 *.ckpt
 *.onnx
 *.npy
 *.npz
-*.pkl
+
 
 # Directory containing your models
-model/
+
 artifacts/
 checkpoints/
 
