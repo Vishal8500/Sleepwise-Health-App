@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+pydantic
+python-multipart
+joblib
+pandas
+numpy
+xgboost
+shap
+imbalanced-learn
+supabase
+python-dotenv
+jinja2
+requests

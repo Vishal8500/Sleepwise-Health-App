@@ -1,0 +1,237 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* SleepWise Coach Design System - Calming Sleep Health Theme */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    /* Base Colors - Calming Sleep Theme */
+    --background: 220 15% 98%;
+    --foreground: 215 25% 27%;
+
+    /* Card System */
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 27%;
+
+    /* Popover System */
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 27%;
+
+    /* Primary - Soft Blue */
+    --primary: 210 50% 65%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 210 45% 75%;
+    --primary-dark: 210 55% 55%;
+
+    /* Secondary - Gentle Green */
+    --secondary: 140 35% 70%;
+    --secondary-foreground: 215 25% 27%;
+    --secondary-light: 140 30% 80%;
+    --secondary-dark: 140 40% 60%;
+
+    /* Muted Tones */
+    --muted: 220 15% 95%;
+    --muted-foreground: 215 16% 47%;
+
+    /* Accent - Warm Lavender */
+    --accent: 260 30% 75%;
+    --accent-foreground: 215 25% 27%;
+
+    /* Success - Soft Green */
+    --success: 140 45% 65%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning - Gentle Orange */
+    --warning: 35 85% 70%;
+    --warning-foreground: 215 25% 27%;
+
+    /* Destructive - Soft Red */
+    --destructive: 0 60% 70%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders & Inputs */
+    --border: 220 13% 91%;
+    --input: 220 13% 96%;
+    --ring: 210 50% 65%;
+
+    /* Sleep-themed Gradients */
+    --gradient-sleep: linear-gradient(135deg, hsl(210, 50%, 65%) 0%, hsl(260, 30%, 75%) 50%, hsl(140, 35%, 70%) 100%);
+    --gradient-dawn: linear-gradient(135deg, hsl(35, 85%, 85%) 0%, hsl(210, 45%, 75%) 100%);
+    --gradient-night: linear-gradient(135deg, hsl(220, 15%, 98%) 0%, hsl(210, 50%, 95%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(0, 0%, 100%) 0%, hsl(220, 15%, 99%) 100%);
+
+    /* Shadows - Soft & Calming */
+    --shadow-soft: 0 4px 20px -2px hsl(210, 50%, 65%, 0.15);
+    --shadow-card: 0 8px 30px -4px hsl(210, 50%, 65%, 0.12);
+    --shadow-floating: 0 12px 40px -8px hsl(210, 50%, 65%, 0.2);
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 45% 75%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary-light: 210 40% 85%;
+    --primary-dark: 210 50% 65%;
+
+    --secondary: 140 30% 80%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary-light: 140 25% 90%;
+    --secondary-dark: 140 35% 70%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 260 25% 85%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --success: 140 40% 75%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 35 80% 80%;
+    --warning-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 55% 80%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Dark mode gradients */
+    --gradient-sleep: linear-gradient(135deg, hsl(210, 45%, 45%) 0%, hsl(260, 25%, 55%) 50%, hsl(140, 30%, 50%) 100%);
+    --gradient-dawn: linear-gradient(135deg, hsl(35, 80%, 60%) 0%, hsl(210, 40%, 55%) 100%);
+    --gradient-night: linear-gradient(135deg, hsl(222, 84%, 8%) 0%, hsl(210, 50%, 15%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(222.2, 84%, 4.9%) 0%, hsl(217.2, 32.6%, 12%) 100%);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-feature-settings: 'cv11', 'ss01';
+    font-variation-settings: 'opsz' 32;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+  }
+}
+
+@layer components {
+  /* Sleep-themed Component Styles */
+  .sleep-card {
+    @apply bg-card border border-border rounded-xl shadow-[var(--shadow-card)] p-6;
+    background: var(--gradient-card);
+    transition: var(--transition-smooth);
+  }
+
+  .sleep-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-floating);
+  }
+
+  .sleep-gradient {
+    background: var(--gradient-sleep);
+  }
+
+  .dawn-gradient {
+    background: var(--gradient-dawn);
+  }
+
+  .night-gradient {
+    background: var(--gradient-night);
+  }
+
+  .gentle-pulse {
+    animation: gentle-pulse 3s ease-in-out infinite;
+  }
+
+  .fade-in {
+    animation: fade-in 0.6s ease-out forwards;
+  }
+
+  .slide-up {
+    animation: slide-up 0.5s ease-out forwards;
+  }
+}
+
+@keyframes gentle-pulse {
+  0%, 100% { 
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
