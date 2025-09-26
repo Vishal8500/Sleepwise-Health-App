@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Layout } from "@/components/layout/Layout";
 import { z } from "zod";
+import { apiClient } from "@/lib/apiClient"; // Import the API client
 
 const predictionSchema = z.object({
   age: z.number().min(1).max(120),
@@ -25,14 +26,16 @@ const predictionSchema = z.object({
   physical_activity: z.number().min(0),
 });
 
+// Update interface to match the backend's PredictResponse schema
 interface PredictionResult {
   predicted_quality: number;
-  predicted_disorder: string;
+  disorder_risk: string; // Renamed from predicted_disorder
   top_drivers: string[];
   coach_tip: string;
   confidence: string;
   rule_override_flag: boolean;
 }
+
 
 export default function Predict() {
   const [formData, setFormData] = useState({
@@ -59,7 +62,7 @@ export default function Predict() {
     setPrediction(null);
 
     try {
-      // Validate input
+      // Validate input (remains the same)
       const validatedData = predictionSchema.parse({
         age: parseInt(formData.age),
         gender: formData.gender,
@@ -72,7 +75,7 @@ export default function Predict() {
         physical_activity: parseInt(formData.physical_activity),
       });
 
-      // Get current user
+      // Get current user (remains the same)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast({
@@ -80,45 +83,13 @@ export default function Predict() {
           description: "Please sign in to get predictions.",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
-      // Mock prediction for now (replace with actual API call)
-      // This would call your edge function or ML model endpoint
-      const mockPrediction: PredictionResult = {
-        predicted_quality: Math.min(10, Math.max(1, 
-          8.5 - (validatedData.stress_level * 0.3) + 
-          (validatedData.sleep_duration > 7 ? 0.5 : -0.5) + 
-          (validatedData.physical_activity > 20 ? 0.3 : -0.2)
-        )),
-        predicted_disorder: validatedData.stress_level > 7 ? "Sleep Anxiety" : 
-                           validatedData.sleep_duration < 6 ? "Insufficient Sleep" : "None",
-        top_drivers: [
-          validatedData.stress_level > 6 ? "High stress level" : "Stress level manageable",
-          validatedData.sleep_duration < 7 ? "Short sleep duration" : "Good sleep duration",
-          validatedData.physical_activity < 20 ? "Low physical activity" : "Good physical activity"
-        ],
-        coach_tip: validatedData.stress_level > 7 
-          ? "Try relaxation techniques before bed, such as deep breathing or meditation."
-          : validatedData.sleep_duration < 7
-          ? "Aim for 7-9 hours of sleep by setting a consistent bedtime routine."
-          : "Great job! Keep maintaining your healthy sleep habits.",
-        confidence: validatedData.sleep_duration > 6 && validatedData.stress_level < 8 ? "high" : 
-                   validatedData.sleep_duration > 5 && validatedData.stress_level < 9 ? "medium" : "low",
-        rule_override_flag: validatedData.stress_level > 8 || validatedData.sleep_duration < 4
-      };
-
-      // Round the quality score
-      mockPrediction.predicted_quality = Math.round(mockPrediction.predicted_quality * 10) / 10;
-
-      setPrediction(mockPrediction);
-
-      // Log the prediction request
-      await supabase.from("coach_logs").insert([{
-        user_id: user.id,
-        prompt: `Prediction request: ${JSON.stringify(validatedData)}`,
-        response: JSON.stringify(mockPrediction)
-      }]);
+      // Replace the entire mock prediction block with a live API call
+      const result = await apiClient.post<PredictionResult>('/predict', validatedData);
+      setPrediction(result);
 
       toast({
         title: "Prediction generated! 🧠",
@@ -133,9 +104,10 @@ export default function Predict() {
         });
         setErrors(fieldErrors);
       } else {
+        const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
         toast({
           title: "Failed to generate prediction",
-          description: "An unexpected error occurred.",
+          description: errorMessage,
           variant: "destructive",
         });
       }
@@ -186,7 +158,7 @@ export default function Predict() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Input Form */}
+            {/* Input Form (JSX remains the same) */}
             <Card className="sleep-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -369,7 +341,8 @@ export default function Predict() {
                 <Card className="sleep-card">
                   <CardContent className="pt-6">
                     <div className="flex items-start gap-3">
-                      {prediction.predicted_disorder === "None" ? (
+                      {/* Update property name from predicted_disorder to disorder_risk */}
+                      {prediction.disorder_risk === "None" ? (
                         <CheckCircle className="h-5 w-5 text-success mt-0.5" />
                       ) : (
                         <AlertTriangle className="h-5 w-5 text-warning mt-0.5" />
@@ -377,9 +350,9 @@ export default function Predict() {
                       <div>
                         <h3 className="font-semibold mb-1">Sleep Assessment</h3>
                         <p className="text-sm text-muted-foreground">
-                          {prediction.predicted_disorder === "None" 
+                          {prediction.disorder_risk === "None" 
                             ? "No sleep disorders detected. Great job!"
-                            : `Potential concern: ${prediction.predicted_disorder}`
+                            : `Potential concern: ${prediction.disorder_risk}`
                           }
                         </p>
                       </div>
@@ -444,3 +417,4 @@ export default function Predict() {
     </Layout>
   );
 }
+

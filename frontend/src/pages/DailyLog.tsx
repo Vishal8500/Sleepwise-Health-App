@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Layout } from "@/components/layout/Layout";
 import { z } from "zod";
+import { apiClient } from "@/lib/apiClient"; // Import the API client
 
 const sleepLogSchema = z.object({
   age: z.number().min(1).max(120),
@@ -47,7 +48,7 @@ export default function DailyLog() {
     setErrors({});
 
     try {
-      // Validate input
+      // Validate input (this part remains the same)
       const validatedData = sleepLogSchema.parse({
         age: parseInt(formData.age),
         gender: formData.gender,
@@ -60,7 +61,7 @@ export default function DailyLog() {
         physical_activity: parseInt(formData.physical_activity),
       });
 
-      // Get current user
+      // Get current user (this client-side check is still useful)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast({
@@ -68,40 +69,34 @@ export default function DailyLog() {
           description: "Please sign in to log your data.",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
-      // Insert log
-      const { error } = await supabase.from("sleep_logs").insert([{
-        ...validatedData,
-        user_id: user.id,
-      }]);
+      // --- MODIFICATION START ---
+      // Replace the direct Supabase call with a call to your backend API
+      await apiClient.post('/log', validatedData);
+      // --- MODIFICATION END ---
 
-      if (error) {
-        toast({
-          title: "Failed to save log",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Daily log stored successfully! 🌙",
-          description: "Your sleep data has been recorded.",
-        });
-        
-        // Reset form
-        setFormData({
-          age: "",
-          gender: "",
-          sleep_duration: "",
-          stress_level: [5],
-          daily_steps: "",
-          bmi_category: "",
-          blood_pressure: "",
-          heart_rate: "",
-          physical_activity: "",
-        });
-      }
+      // Success handling now follows the successful API call
+      toast({
+        title: "Daily log stored successfully! 🌙",
+        description: "Your sleep data has been recorded.",
+      });
+      
+      // Reset form
+      setFormData({
+        age: "",
+        gender: "",
+        sleep_duration: "",
+        stress_level: [5],
+        daily_steps: "",
+        bmi_category: "",
+        blood_pressure: "",
+        heart_rate: "",
+        physical_activity: "",
+      });
+
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
@@ -110,9 +105,11 @@ export default function DailyLog() {
         });
         setErrors(fieldErrors);
       } else {
+        // This now catches errors from the API call
+        const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
         toast({
           title: "Failed to save log",
-          description: "An unexpected error occurred.",
+          description: errorMessage,
           variant: "destructive",
         });
       }
@@ -128,6 +125,7 @@ export default function DailyLog() {
     }));
   };
 
+  // The entire JSX return block remains unchanged.
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 max-w-4xl">

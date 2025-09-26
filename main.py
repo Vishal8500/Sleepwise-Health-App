@@ -4,7 +4,7 @@ import joblib
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 
 from fastapi import FastAPI, HTTPException, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +24,7 @@ ARTIFACT_DIR = r"D:\training1\model"
 REGRESSOR_PATH = os.path.join(ARTIFACT_DIR, "xgb_sleep_quality.pth")
 CLASSIFIER_PATH = os.path.join(ARTIFACT_DIR, "xgb_sleep_disorder.pth")
 PREPROCESSOR_PATH = os.path.join(ARTIFACT_DIR, "preprocessor.pkl")
+COHERE_API_KEY = os.getenv("COHERE_API_KEY", "") 
 
 # ────────────────────── Supabase client ────────────────────
 from supabase import create_client, Client
@@ -31,10 +32,11 @@ supabase: Optional[Client] = None
 if SUPABASE_URL and SUPABASE_ANON_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-# ─────────────────────── Gemini client ─────────────────────
-import google.generativeai as genai
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+# ─────────────────────── Cohere client ─────────────────────
+import cohere
+co = None
+if COHERE_API_KEY:
+    co = cohere.Client(COHERE_API_KEY)
 
 # ───────────────────────── FastAPI ─────────────────────────
 app = FastAPI(title="SleepWise Coach API", version="1.3.0")
@@ -81,15 +83,6 @@ class PredictResponse(BaseModel):
     coach_tip: str
     confidence: str
     rule_override_flag: bool
-
-class AuthPayload(BaseModel):
-    email: str
-    password: str
-
-class FeedbackPayload(BaseModel):
-    token: Optional[str] = None
-    followed: bool
-    acknowledged: bool = True
 
 # ───────────────────────── Helpers ─────────────────────────
 RISK_MAP = {0: "None", 1: "Insomnia", 2: "Sleep Apnea"}
@@ -164,16 +157,28 @@ def rule_engine(disorder_risk: str, bmi_category: Optional[str]) -> Optional[str
         return "Recommend clinical evaluation; clinician review required."
     return None
 
-def call_gemini(prompt: str) -> dict:
-    if not GEMINI_API_KEY:
+# ─────────────────────── Cohere call ───────────────────────
+def call_cohere(prompt_data: str) -> dict:
+    if not co:
         return {
-            "tip": "LLM not configured. Please set GEMINI_API_KEY.",
+            "tip": "LLM not configured. Please set COHERE_API_KEY.",
             "confidence": "n/a"
         }
+    
+    preamble = """
+    You are a creative lifestyle sleep coach. You must respond with only a JSON object with three keys: 'tip', 'rationale', and 'confidence'.
+    The 'tip' should be a single, actionable piece of advice.
+    The 'rationale' should briefly explain why the tip is relevant.
+    The 'confidence' should be 'low', 'medium', or 'high'.
+    """
+
     try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(prompt)
-        text = (response.text or "").strip()
+        response = co.chat(
+            model='command-a-03-2025',   # ✅ now using command-r-plus
+            preamble=preamble,
+            message=prompt_data
+        )
+        text = response.text.strip()
 
         # Clean markdown fences like ```json ... ```
         text = text.replace("```json", "").replace("```", "").strip()
@@ -186,32 +191,11 @@ def call_gemini(prompt: str) -> dict:
                 "confidence": data.get("confidence", "medium")
             }
         except Exception:
-            # if parsing fails, return raw text
             return {"tip": text, "confidence": "medium"}
     except Exception as e:
         return {"tip": f"LLM call failed: {str(e)}", "confidence": "n/a"}
 
-
-# ───────────────────────── Auth ────────────────────────────
-@app.post("/signup")
-def signup(payload: AuthPayload):
-    if not supabase: raise HTTPException(500, "Supabase not configured")
-    try:
-        res = supabase.auth.sign_up({"email": payload.email, "password": payload.password})
-        return {"message": "Check email to confirm sign-up", "user": res.user.id if res.user else None}
-    except Exception as e:
-        raise HTTPException(400, f"Signup failed: {e}")
-
-@app.post("/login")
-def login(payload: AuthPayload):
-    if not supabase: raise HTTPException(500, "Supabase not configured")
-    try:
-        res = supabase.auth.sign_in_with_password({"email": payload.email, "password": payload.password})
-        return {"access_token": res.session.access_token, "user_id": res.user.id}
-    except Exception as e:
-        raise HTTPException(400, f"Login failed: {e}")
-
-# ──────────────────────── Predict ─────────────────────────
+# ───────────────────────── Predict ─────────────────────────
 @app.post("/predict", response_model=PredictResponse)
 def predict(req: PredictRequest):
     user_id = get_user_id_from_token(req.token)
@@ -245,7 +229,7 @@ def predict(req: PredictRequest):
         - Disorder Risk: {disorder}
         - Top Drivers: {", ".join(top2)}
         """
-        out = call_gemini(llm_prompt)
+        out = call_cohere(llm_prompt)
         flag = False
 
         if supabase and user_id:
@@ -268,9 +252,6 @@ def predict(req: PredictRequest):
         confidence=out.get("confidence", "medium"),
         rule_override_flag=flag
     )
-
-
-
 
 # ──────────────────────── Coach only ───────────────────────
 @app.post("/coach")
@@ -299,8 +280,8 @@ def coach_endpoint(
     - Top Drivers: {", ".join(top_drivers)}
     """
 
-    out = call_gemini(llm_prompt)
-
+    out = call_cohere(llm_prompt)
+    
     if supabase and user_id:
         try:
             supabase.table("coach_logs").insert({
@@ -319,41 +300,6 @@ def coach_endpoint(
         "confidence": out.get("confidence", "medium"),
         "rule_override_flag": False
     }
-
-
-
-# ───────────────────── Dashboard APIs ──────────────────────
-@app.get("/dashboard/series")
-def dashboard_series(
-    token: str = Query(..., description="Supabase JWT"),
-    days: int = Query(7, ge=1, le=30)
-):
-    user_id = get_user_id_from_token(token)
-    if not user_id:
-        raise HTTPException(401, "Invalid token")
-
-    items = []
-    if supabase:
-        try:
-            since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-            resp = supabase.table("sleep_logs") \
-                .select("*") \
-                .eq("user_id", user_id) \
-                .gte("created_at", since) \
-                .order("created_at", desc=False) \
-                .execute()
-            items = resp.data or []
-        except Exception as e:
-            raise HTTPException(400, f"Fetch failed: {e}")
-
-    series = {
-        "dates": [i.get("created_at","")[:10] for i in items],
-        "sleep_hours": [i.get("sleep_duration") for i in items],
-        "quality": [i.get("predicted_quality") for i in items],
-        "stress": [i.get("stress_level") for i in items],
-        "steps": [i.get("daily_steps") for i in items],
-    }
-    return series
 
 # ───────────────────────── Logs ────────────────────────────
 class LogRequest(LogPayload):
@@ -385,6 +331,54 @@ def log_daily(req: LogRequest):
 
     return {"status": "ok", "message": "Daily log stored successfully"}
 
+# ───────────────────── Dashboard APIs ──────────────────────
+@app.get("/dashboard/series")
+def dashboard_series(
+    token: str = Query(..., description="Supabase JWT"),
+    days: int = Query(7, ge=1, le=30)
+):
+    user_id = get_user_id_from_token(token)
+    if not user_id:
+        raise HTTPException(401, "Invalid token")
+
+    items: List[Dict[str, Any]] = []
+    if supabase:
+        try:
+            since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+            resp = supabase.table("sleep_logs") \
+                .select("created_at, sleep_duration, predicted_quality, stress_level, daily_steps") \
+                .eq("user_id", user_id) \
+                .gte("created_at", since) \
+                .order("created_at", desc=False) \
+                .execute()
+            items = resp.data or []
+        except Exception as e:
+            raise HTTPException(400, f"Fetch failed: {e}")
+
+    if not items:
+        return {
+            "logs": [],
+            "averages": {"sleep": 0, "quality": 0, "stress": 0, "steps": 0}
+        }
+
+    df = pd.DataFrame(items)
+    log_count = len(df)
+    
+    df['sleep_duration'] = pd.to_numeric(df['sleep_duration']).fillna(0)
+    df['predicted_quality'] = pd.to_numeric(df['predicted_quality']).fillna(0)
+    df['stress_level'] = pd.to_numeric(df['stress_level']).fillna(0)
+    df['daily_steps'] = pd.to_numeric(df['daily_steps']).fillna(0)
+
+    averages = {
+        "sleep": round(df['sleep_duration'].sum() / log_count, 1),
+        "quality": round(df['predicted_quality'].sum() / log_count, 1),
+        "stress": round(df['stress_level'].sum() / log_count),
+        "steps": round(df['daily_steps'].sum() / log_count)
+    }
+
+    logs_for_response = df.to_dict('records')
+
+    return {"logs": logs_for_response, "averages": averages}
 
 
 @app.get("/dashboard/top-drivers")
@@ -425,21 +419,3 @@ def dashboard_top_drivers(
             counts[f] = counts.get(f, 0) + 1
 
     return {"latest_top_drivers": latest_top, "driver_counts": counts}
-
-# ───────────────────────── Feedback ────────────────────────
-@app.post("/feedback")
-def tip_feedback(payload: FeedbackPayload):
-    user_id = get_user_id_from_token(payload.token)
-    if not user_id:
-        raise HTTPException(401, "Invalid token")
-    if supabase:
-        try:
-            supabase.table("tip_feedback").insert({
-                "user_id": user_id,
-                "followed": payload.followed,
-                "acknowledged": payload.acknowledged,
-                "created_at": datetime.now(timezone.utc).isoformat()
-            }).execute()
-        except Exception as e:
-            return {"status": "error", "message": f"Store failed (create tip_feedback table): {e}"}
-    return {"status": "ok"}

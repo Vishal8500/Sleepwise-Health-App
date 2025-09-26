@@ -4,116 +4,99 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { BarChart3, TrendingUp, Moon, Activity, Heart, Target, Loader2, Calendar } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Layout } from "@/components/layout/Layout";
-import { Line, LineChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, BarChart, Bar } from "recharts";
+import { Line, LineChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
+import { apiClient } from "@/lib/apiClient"; // Import the API client
 
-interface SleepLog {
-  id: number;
+// --- MODIFICATION START ---
+// Define types to match the new backend API responses
+interface LogEntry {
   created_at: string;
   sleep_duration: number | null;
   predicted_quality: number | null;
   stress_level: number | null;
   daily_steps: number | null;
-  top_drivers: any; // Json type from Supabase
 }
 
+interface SeriesData {
+  logs: LogEntry[];
+  averages: {
+    sleep: number;
+    quality: number;
+    stress: number;
+    steps: number;
+  };
+}
+
+interface DriversData {
+  latest_top_drivers: string[];
+  driver_counts: Record<string, number>;
+}
+// --- MODIFICATION END ---
+
 export default function Dashboard() {
-  const [logs, setLogs] = useState<SleepLog[]>([]);
+  // --- MODIFICATION START ---
+  // Update state to hold the new data structures
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [averages, setAverages] = useState<SeriesData['averages']>({ sleep: 0, quality: 0, stress: 0, steps: 0 });
+  const [topDrivers, setTopDrivers] = useState<{ driver: string, count: number }[]>([]);
+  // --- MODIFICATION END ---
+  
   const [isLoading, setIsLoading] = useState(true);
   const [days, setDays] = useState("7");
   const { toast } = useToast();
 
+  // --- MODIFICATION START ---
+  // Rewrite the data fetching function to use the apiClient
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({
-          title: "Authentication required",
-          description: "Please sign in to view your dashboard.",
-          variant: "destructive",
-        });
-        return;
-      }
+      // Fetch both series and driver data from the backend in parallel
+      const [seriesData, driversData] = await Promise.all([
+        apiClient.get<SeriesData>('/dashboard/series', { days: parseInt(days) }),
+        apiClient.get<DriversData>('/dashboard/top-drivers', { days: parseInt(days) })
+      ]);
 
-      // Calculate date range
-      const daysAgo = new Date();
-      daysAgo.setDate(daysAgo.getDate() - parseInt(days));
+      setLogs(seriesData.logs);
+      setAverages(seriesData.averages);
 
-      // Fetch sleep logs
-      const { data, error } = await supabase
-        .from("sleep_logs")
-        .select("*")
-        .eq("user_id", user.id)
-        .gte("created_at", daysAgo.toISOString())
-        .order("created_at", { ascending: true });
+      // Format the driver counts for rendering
+      const formattedDrivers = Object.entries(driversData.driver_counts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5)
+        .map(([driver, count]) => ({ driver, count }));
+      setTopDrivers(formattedDrivers);
 
-      if (error) {
-        toast({
-          title: "Failed to load dashboard",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        setLogs(data || []);
-      }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
       toast({
         title: "Failed to load dashboard",
-        description: "An unexpected error occurred.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   };
+  // --- MODIFICATION END ---
 
   useEffect(() => {
     fetchDashboardData();
   }, [days]);
 
-  // Prepare chart data
+  // Prepare chart data from the new 'logs' state
   const chartData = logs.map(log => ({
     date: new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     sleep_hours: log.sleep_duration || 0,
     quality: log.predicted_quality || 0,
     stress: log.stress_level || 0,
-    steps: Math.round((log.daily_steps || 0) / 1000), // Convert to thousands
+    steps: Math.round((log.daily_steps || 0) / 1000), // Convert to thousands for chart
   }));
-
-  // Calculate averages
-  const averages = logs.reduce((acc, log) => ({
-    sleep: acc.sleep + (log.sleep_duration || 0),
-    quality: acc.quality + (log.predicted_quality || 0),
-    stress: acc.stress + (log.stress_level || 0),
-    steps: acc.steps + (log.daily_steps || 0),
-  }), { sleep: 0, quality: 0, stress: 0, steps: 0 });
-
+  
   const logCount = logs.length;
-  if (logCount > 0) {
-    averages.sleep = Math.round((averages.sleep / logCount) * 10) / 10;
-    averages.quality = Math.round((averages.quality / logCount) * 10) / 10;
-    averages.stress = Math.round(averages.stress / logCount);
-    averages.steps = Math.round(averages.steps / logCount);
-  }
 
-  // Get top drivers frequency
-  const driverCounts: { [key: string]: number } = {};
-  logs.forEach(log => {
-    if (log.top_drivers && Array.isArray(log.top_drivers)) {
-      log.top_drivers.forEach((driver: string) => {
-        driverCounts[driver] = (driverCounts[driver] || 0) + 1;
-      });
-    }
-  });
-
-  const topDrivers = Object.entries(driverCounts)
-    .sort(([,a], [,b]) => b - a)
-    .slice(0, 5)
-    .map(([driver, count]) => ({ driver, count }));
-
+  // The entire JSX return block is updated to use the new state variables.
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
