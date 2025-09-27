@@ -41,10 +41,14 @@ if COHERE_API_KEY:
 # ───────────────────────── FastAPI ─────────────────────────
 app = FastAPI(title="SleepWise Coach API", version="1.3.0")
 
+origins = [
+    "https://mysleepwise.netlify.app",
+]
+
 # CORS for Lovable frontends
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten in production
+    allow_origins=origins,  # tighten in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
