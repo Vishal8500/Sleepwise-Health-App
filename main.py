@@ -20,10 +20,10 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
-ARTIFACT_DIR = os.getenv("ARTIFACT_DIR")
-REGRESSOR_PATH = os.getenv("REGRESSOR_PATH")
-CLASSIFIER_PATH = os.getenv("CLASSIFIER_PATH")
-PREPROCESSOR_PATH = os.getenv("PREPROCESSOR_PATH")
+ARTIFACT_DIR = os.path.join(os.path.dirname(__file__), "models")
+REGRESSOR_PATH = os.path.join(ARTIFACT_DIR, "xgb_sleep_quality.pth")
+CLASSIFIER_PATH = os.path.join(ARTIFACT_DIR, "xgb_sleep_disorder.pth")
+PREPROCESSOR_PATH = os.path.join(ARTIFACT_DIR, "preprocessor.pkl")
 COHERE_API_KEY = os.getenv("COHERE_API_KEY", "") 
 
 # ────────────────────── Supabase client ────────────────────
