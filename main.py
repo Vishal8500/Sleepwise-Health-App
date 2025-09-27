@@ -419,3 +419,8 @@ def dashboard_top_drivers(
             counts[f] = counts.get(f, 0) + 1
 
     return {"latest_top_drivers": latest_top, "driver_counts": counts}
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))  # Render automatically sets PORT
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
